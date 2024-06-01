@@ -344,14 +344,15 @@
         // Show the loading animation
         document.getElementById('loading').style.display = 'block';
 
-     
+        console.log('inputPoints')
+        console.log(inputPoints)
+        console.log('inputLabels')
+        console.log(inputLabels)
 
-        // Get the current image from the canvas
-        var canvas = document.getElementById('img_seg');
-        var dataUrl = canvas.toDataURL('image/png');
-
+        let dataUrl = images[currentImageIndex];
         // Remove the "data:image/png;base64," part of the data URL
-        var base64Image = dataUrl.replace(/^data:image\/(png|jpg);base64,/, "");
+        let base64Image = dataUrl.split(',')[1];
+
 
         // Create a JSON object with the base64 image, input labels, and input points
         var jsonData = {
@@ -380,6 +381,7 @@
                 // Draw the image on the img_res canvas when it's loaded
                 var canvas = document.getElementById('img_res');
                 var ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(img, 0, 0);
 
                 // Hide the loading animation
@@ -461,6 +463,9 @@
             images_ready.push(dataUrl);
             console.log(dataUrl);
             sendingAgain = false;
+
+            inputLabels = [];
+            inputPoints = [];
 
             var data = {
                 imageWidth: img.width,

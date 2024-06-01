@@ -303,17 +303,15 @@
         var images = [];
         var currentImageIndex = 0;
         var images_ready = [];
-        var images_names = [];
 
-        var data_array = [];
 
-        var inputLabels = [];
-        var inputPoints = [];
+        var box = [];
 
 
          // Initialize the label with a default value
         var label = 0;
 
+        var sendingAgain = false;
 
 
         
@@ -335,19 +333,82 @@
             }
         });
 
+       
+
         // Add an event listener to the canvas for mouseup
         document.getElementById('img_seg').addEventListener('mouseup', function(event) {
-            if (label != null && start) {
-                // Add the label to the inputLabels array
-                inputLabels.push(label);
-                // Add the points to the inputPoints array
-                inputPoints.push(start, end);
+            if (label != null && start  != null && end != null) {
+                let canvas = document.getElementById('img_seg');
+              
+                
+                let x = start[0] - canvas.offsetLeft;
+                let y = start[1] - canvas.offsetTop;
+                let width = end[0] - start[0];
+                let height = end[1] - start[1];
+                box = [x, y, x + width, y + height];
 
                 // Reset start and end
                 start = null;
                 end = null;
+
+              
+                if (sendingAgain==true){ 
+                    document.getElementById('loading').style.display = 'block';
+                    let dataUrl = images[currentImageIndex];
+                    // Remove the "data:image/png;base64," part of the data URL
+                    let base64Image = dataUrl.split(',')[1];
+
+
+                    let jsonData = {
+                        file: base64Image,
+                        box: box,
+                        again: sendingAgain,
+                    };
+                    do_the_fetch_box(jsonData);
+                }
             }
         });
+
+
+        function do_the_fetch_box(jsonData){
+
+            // Send a POST request to the Flask server
+            fetch('http://127.0.0.1:5000/predict/box', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(jsonData)  // send the JSON data
+            })
+            .then(response => response.json())  // parse the response as JSON
+            .then(data => {
+                // The image is returned as a base64 string in the 'image' property
+                var imageBase64 = 'data:image/png;base64,' + data.image;
+
+                // Create a new Image object
+                var img = new Image();
+                img.onload = function() {
+                    // Draw the image on the img_res canvas when it's loaded
+                    var canvas = document.getElementById('img_res');
+                    var ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+
+                    // Hide the loading animation
+                    document.getElementById('loading').style.display = 'none';
+                };
+                img.src = imageBase64;
+            })
+            .catch(error => {
+                console.error(error);
+
+                // Hide the loading animation
+                document.getElementById('loading').style.display = 'none';
+                });
+            if (sendingAgain==false){
+                sendingAgain = true;
+            }
+        }
+
 
         function drawBox() {
             // Clear the canvas
@@ -366,62 +427,35 @@
             ctx.strokeStyle = label === 0 ? 'red' : 'blue';
             ctx.stroke();
         }
-                document.getElementById('generateButton').addEventListener('click', function() {
+
+        
+        document.getElementById('generateButton').addEventListener('click', function() {
         // Show the loading animation
         document.getElementById('loading').style.display = 'block';
 
-        // Get the current image from the canvas
-        var canvas = document.getElementById('img_seg');
-        var dataUrl = canvas.toDataURL('image/png');
+    
+        var dataUrl = images[currentImageIndex];
 
-        // Remove the "data:image/png;base64," part of the data URL
-        var base64Image = dataUrl.replace(/^data:image\/(png|jpg);base64,/, "");
+        var base64Image = dataUrl.split(',')[1];
 
         // Create a JSON object with the base64 image, input labels, and input points
         var jsonData = {
             file: base64Image,
-            input_labels: inputLabels,
-            input_points: inputPoints
+            box: box,
+            again: sendingAgain,
+
         };
 
         // Send a POST request to the Flask server
-        fetch('http://127.0.0.1:5000/predict/prompt', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(jsonData)  // send the JSON data
-        })
-        .then(response => response.json())  // parse the response as JSON
-        .then(data => {
-            // The image is returned as a base64 string in the 'image' property
-            var imageBase64 = 'data:image/png;base64,' + data.image;
-
-            // Create a new Image object
-            var img = new Image();
-            img.onload = function() {
-                // Draw the image on the img_res canvas when it's loaded
-                var canvas = document.getElementById('img_res');
-                var ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-
-                // Hide the loading animation
-                document.getElementById('loading').style.display = 'none';
-            };
-            img.src = imageBase64;
-        })
-        .catch(error => {
-            console.error(error);
-
-            // Hide the loading animation
-            document.getElementById('loading').style.display = 'none';
-            });
+        do_the_fetch_box(jsonData);
         });
+       
               
 
         
 
         function handleImage(e) {
+            sendingAgain = false
             
             fileNames = Array.from(this.files).map(function(file) {
                 return file.name;
@@ -473,8 +507,9 @@
 
 
         document.getElementById('pushButton').addEventListener('click', function() {
-            var canvas = document.getElementById('img_res'); 
-            var dataUrl = canvas.toDataURL();
+            
+            
+            var dataUrl = img
             images_ready.push(dataUrl);
             console.log(dataUrl);
 
@@ -484,12 +519,12 @@
                 rectangles: rectangles
             };
             rectangles = [];
-            data_array.push(data);
             currentImageIndex++;
+            sendingAgain = false;
             if (currentImageIndex < images.length) {
                 loadImage();
             }else{
-                //erase the canvas
+                //erase the 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 //alert segmentation is over 
                 alert('Segmentation is over');
@@ -537,8 +572,6 @@
         // Add an event listener to the reset button
         document.getElementById('resetButton').addEventListener('click', function() {
             // Clear the inputLabels and inputPoints arrays
-            inputLabels = [];
-            inputPoints = [];
 
             // Clear the canvas
             let canvas = document.getElementById('img_seg');
