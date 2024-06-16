@@ -147,29 +147,29 @@
 </head>
 <body>
     <div display="flex" justify-content="center" align-items="center">
-        <h1>Ferramenta de segmentação de imagens automática</h1>
-        <h2>Selecione uma ou mais imagens para segmentar, use os pontos para indicar onde está o que deve ser segmentado</h2>
+        <h1>Automatic Image Segmentation Tool</h1>
+        <h2>Select one or more images to segment, use the points to indicate the areas to be segmented</h2>
         <div style="display: flex;">
             <div>
                 <input type="file" id="imageLoader" name="imageLoader" multiple style="display: none;"/>
                 <label for="imageLoader" class="custom-file-upload">
-                    Selecione imagens
+                    Select images
                 </label>
                     <!-- CANVAS -->
                     <div class="row">
                     <div class="col">                            
                         <div style="margin: 15px 0;">
-                            <h4>Imagem original</h4>
+                            <h4>Original Image</h4>
                         </div>
-                        <!-- CANVAS DE SEGMENTAÇÃO -->
+                        <!-- SEGMENTATION CANVAS -->
                         <canvas id="img_seg" class="canvas_seg"></canvas>
                     </div>
 
                     <div class="col">
                         <div style="margin: 15px 0;">
-                            <h4>Máscara</h4>
+                            <h4>Mask</h4>
                         </div>
-                        <!-- CANVAS COM A MÁSCARA RESULTANTE -->
+                        <!-- CANVAS WITH RESULTING MASK -->
                         <canvas id="img_res"></canvas>
                      
 
@@ -178,7 +178,7 @@
              
 
                     <div class="col">
-                        <button class="col button button-save" id="downloadImages">Baixar Imagens</button> 
+                        <button class="col button button-save" id="downloadImages">Download Images</button> 
                     </div>
 
                 </div>
@@ -191,24 +191,24 @@
         </div>
         <div id="selection_buttons" class="row" >
             <div class="col">
-            <h4>Selecione a cor que representa a máscara</h4>
+            <h4>Select the color that represents the mask</h4>
 
                 <div class="colorSelection">
                     <button id="blueButton" class="colorButtonSelection"></button>
-                    <span>Faz parte da máscara</span> 
+                    <span>Part of the mask</span> 
                 </div>
                 <div class="colorSelection">
                 <button id="redButton" class="colorButtonSelection"></button>
-                <span>Não faz parte da máscara</span> 
+                <span>Not part of the mask</span> 
                 </div>
             </div>
 
 
             <div class="col">
                 <div class="row">   
-                <button class="col button" id="generateButton">Gerar máscara</button>
+                <button class="col button" id="generateButton">Generate Mask</button>
                 <button class="col button" id="resetButton">Reset</button>
-                <button class="col button" id="pushButton">Próxima</button>
+                <button class="col button" id="pushButton">Next</button>
                 </div>
             </div>  
         </div>
