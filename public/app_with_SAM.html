@@ -382,7 +382,12 @@
                 var canvas = document.getElementById('img_res');
                 var ctx = canvas.getContext('2d');
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(img, 0, 0);
+                //resize image to fit the canvas
+                var maxWidth = 500; // Max width for the image
+                var ratio = 0;  // Used for aspect ratio
+
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
 
                 // Hide the loading animation
                 document.getElementById('loading').style.display = 'none';

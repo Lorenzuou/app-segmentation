@@ -227,7 +227,7 @@
             var zip = new JSZip();
 
 
-            function zipAndDownload(){
+             function zipAndDownload(){
                 
                 // Create a new zip file
                 var zip = new JSZip();
@@ -261,6 +261,7 @@
                     saveAs(content, "images.zip");
                 });
             }
+
 
             document.getElementById('downloadImages').addEventListener('click',zipAndDownload);
 
@@ -508,8 +509,8 @@
 
         document.getElementById('pushButton').addEventListener('click', function() {
             
-            
-            var dataUrl = img
+            var canvas = document.getElementById('img_res'); 
+            var dataUrl = canvas.toDataURL();
             images_ready.push(dataUrl);
             console.log(dataUrl);
 

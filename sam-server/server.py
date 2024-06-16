@@ -211,6 +211,8 @@ def predict_prompt():
 
     image = Image.open(io.BytesIO(base64.b64decode(data['file'])))
     image_cv2 = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+    #save image to disk
+    cv2.imwrite('image.jpg', image_cv2)
     input_labels = data['input_labels']
     input_points = data['input_points']
 
@@ -223,6 +225,8 @@ def predict_prompt():
 
     # turn black to white and white to black 
     image_masked = cv2.bitwise_not(image_masked)
+    #save masked image to disk
+    cv2.imwrite('image_masked.jpg', image_masked)
 
     image_masked = Image.fromarray(image_masked)
 
@@ -245,8 +249,12 @@ def predict():
     file = request.files['file'].read()  # get the file from the request
     image = Image.open(io.BytesIO(file))  # open the image
     image_cv2 = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+    #save image to disk
+    cv2.imwrite('image.jpg', image_cv2)
 
     image_masked = generate_image(image_cv2)
+    #save masked image to disk
+    cv2.imwrite('image_masked.jpg', image_masked)
     
     image_masked = Image.fromarray(image_masked)
 
