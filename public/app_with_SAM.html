@@ -323,18 +323,28 @@
         // Add an event listener to the canvas
         document.getElementById('img_seg').addEventListener('click', function(event) {
             if (label != null) {
+                let canvas = document.getElementById('img_seg');
+
                 // Add the label to the inputLabels array
                 inputLabels.push(label);
-                // Add the point to the inputPoints array
-                inputPoints.push([event.clientX, event.clientY]);
-
-                // Draw a circle on the canvas to show the point
-                let canvas = document.getElementById('img_seg');
+                //convert input x and y to the original image size
                 let x = event.clientX - canvas.offsetLeft;
                 let y = event.clientY - canvas.offsetTop;
+                let x_ratio = img.width / canvas.width;
+                let y_ratio = img.height / canvas.height;
+
+                x = Math.round(x * x_ratio);
+                y = Math.round(y * y_ratio);
+                
+                // Add the point to the inputPoints array
+                inputPoints.push([x, y]);
+
+                // Draw a circle on the canvas to show the point
+                let x_point = event.clientX - canvas.offsetLeft;
+                let y_point = event.clientY - canvas.offsetTop;
                 let ctx = canvas.getContext('2d');
                 ctx.beginPath();
-                ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                ctx.arc(x_point, y_point, 5, 0, 2 * Math.PI);
                 ctx.fillStyle = label === 0 ? 'red' : 'blue';
                 ctx.fill();
             }
