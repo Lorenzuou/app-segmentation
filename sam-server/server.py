@@ -224,7 +224,7 @@ def predict_prompt():
 
 
     # turn black to white and white to black 
-    image_masked = cv2.bitwise_not(image_masked)
+    # image_masked = cv2.bitwise_not(image_masked)
     #save masked image to disk
     cv2.imwrite('image_masked.jpg', image_masked)
 

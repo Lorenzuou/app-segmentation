@@ -226,8 +226,7 @@
             // Create a new zip file
             var zip = new JSZip();
 
-
-             function zipAndDownload(){
+            function zipAndDownload(){
                 
                 // Create a new zip file
                 var zip = new JSZip();
@@ -240,7 +239,7 @@
                 // Add images to the zip file
                 images_ready.forEach((image, index) => {
                     // Convert the image data to a Blob
-                    var imgData = image.replace(/^data:image\/(png|jpg);base64,/, "");
+                    var imgData = image.src.split(',')[1];
                     var imgBlob = b64toBlob(imgData, 'image/png');
 
                     let image_name = fileNames[index];
@@ -261,6 +260,7 @@
                     saveAs(content, "images.zip");
                 });
             }
+
 
 
             document.getElementById('downloadImages').addEventListener('click',zipAndDownload);
@@ -304,6 +304,8 @@
         var images = [];
         var currentImageIndex = 0;
         var images_ready = [];
+        var image_b64_ready = undefined
+
 
 
         var box = [];
@@ -404,6 +406,8 @@
 
                     // Hide the loading animation
                     document.getElementById('loading').style.display = 'none';
+                    image_b64_ready = img
+                
                 };
                 img.src = imageBase64;
             })
@@ -518,9 +522,13 @@
         document.getElementById('pushButton').addEventListener('click', function() {
             
             var canvas = document.getElementById('img_res'); 
-            var dataUrl = canvas.toDataURL();
-            images_ready.push(dataUrl);
-            console.log(dataUrl);
+            if (image_b64_ready === undefined) {
+                alert('Please generate the mask before moving to the next image');
+                return;
+            }
+            images_ready.push(image_b64_ready);
+            image_b64_ready = undefined;
+            
 
             var data = {
                 imageWidth: img.width,

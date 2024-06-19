@@ -240,7 +240,7 @@
                 // Add images to the zip file
                 images_ready.forEach((image, index) => {
                     // Convert the image data to a Blob
-                    var imgData = image.replace(/^data:image\/(png|jpg);base64,/, "");
+                    var imgData = image.src.split(',')[1];
                     var imgBlob = b64toBlob(imgData, 'image/png');
 
                     let image_name = fileNames[index];
@@ -303,6 +303,8 @@
         var images = [];
         var currentImageIndex = 0;
         var images_ready = [];
+        var image_b64_ready = undefined
+
         var images_names = [];
 
         var data_array = [];
@@ -398,6 +400,8 @@
 
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
+                
+                image_b64_ready = img
 
                 // Hide the loading animation
                 document.getElementById('loading').style.display = 'none';
@@ -474,13 +478,19 @@
 
         document.getElementById('pushButton').addEventListener('click', function() {
             var canvas = document.getElementById('img_res'); 
-            var dataUrl = canvas.toDataURL();
-            images_ready.push(dataUrl);
-            console.log(dataUrl);
+            // var dataUrl = canvas.toDataURL();
             sendingAgain = false;
 
             inputLabels = [];
             inputPoints = [];
+
+            var canvas = document.getElementById('img_res'); 
+            if (image_b64_ready === undefined) {
+                alert('Please generate the mask before moving to the next image');
+                return;
+            }
+            images_ready.push(image_b64_ready);
+            image_b64_ready = undefined;
 
             var data = {
                 imageWidth: img.width,
