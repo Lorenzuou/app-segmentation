@@ -10,7 +10,30 @@ import numpy as np
 import cv2
 import base64
 import supervision as sv
+import os 
+from pathlib import Path
 
+SESSIONS_FOLDER = 'sessions'
+
+
+def rmdir(directory):
+    directory = Path(directory)
+    for item in directory.iterdir():
+        if item.is_dir():
+            rmdir(item)
+        else:
+            item.unlink()
+    directory.rmdir()
+
+
+os.makedirs(SESSIONS_FOLDER, exist_ok=True)
+
+# remove any folder from the sessions folder that does not have any image inside the folder masked
+for folder in os.listdir(SESSIONS_FOLDER):
+    folder_path = os.path.join(SESSIONS_FOLDER, folder)
+    masked_folder_path = os.path.join(folder_path, 'masked')
+    if len(os.listdir(masked_folder_path)) == 0:
+        rmdir(folder_path)
 
 app = Flask(__name__)
 CORS(app)  # enable CORS on the app
@@ -72,6 +95,7 @@ def apply_mask(image, mask, color=None):
 
 def get_current_image():
     return current_image
+
 
 def set_current_image(image):
     current_image = image
@@ -172,17 +196,32 @@ def predict_box():
         return jsonify({'error': 'No file in request'}), 400
     if 'box' not in data:
         return jsonify({'error': 'No box in request'}), 400
+    
+    sessionIdentifier = data['sessionIdentifier']
+
+    # check if a folder with the sessionIdentifier exists 
+    sessionFolder = os.path.join(SESSIONS_FOLDER, sessionIdentifier)
+    os.makedirs(sessionFolder, exist_ok=True)
+
+    #create a original and masked folder
+    originalFolder = os.path.join(sessionFolder, 'original')
+    maskedFolder = os.path.join(sessionFolder, 'masked')
+    os.makedirs(originalFolder, exist_ok=True)
+    os.makedirs(maskedFolder, exist_ok=True)
 
     image = Image.open(io.BytesIO(base64.b64decode(data['file'])))
     image_cv2 = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
-    cv2.imwrite('image.jpg', image_cv2) 
+    image_name = data['fileName']
+
+    cv2.imwrite(os.path.join(originalFolder, image_name), image_cv2)
+
     box = data['box']
     if (data['again'] is False or predictor.is_image_set is False):
         set_image(image_cv2)
     image_masked = generate_images_with_box(image_cv2, box)
-    cv2.imwrite('image_masked.jpg', image_masked)
- 
+
+    cv2.imwrite(os.path.join(maskedFolder, image_name), image_masked)
 
     # turn black to white and white to black 
     # image_masked = cv2.bitwise_not(image_masked)

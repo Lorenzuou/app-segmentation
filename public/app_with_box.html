@@ -305,6 +305,7 @@
         var currentImageIndex = 0;
         var images_ready = [];
         var image_b64_ready = undefined
+        var sessionIdentifier = Math.random().toString(36).substring(7);
 
 
 
@@ -372,8 +373,11 @@
 
                     let jsonData = {
                         file: base64Image,
+                        fileName: fileNames[currentImageIndex],
                         box: box,
                         again: sendingAgain,
+                        sessionIdentifier: sessionIdentifier
+
                     };
                     do_the_fetch_box(jsonData);
                 }
@@ -454,8 +458,10 @@
         // Create a JSON object with the base64 image, input labels, and input points
         var jsonData = {
             file: base64Image,
+            fileName: fileNames[currentImageIndex],
             box: box,
             again: sendingAgain,
+            sessionIdentifier: sessionIdentifier
 
         };
 

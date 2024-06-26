@@ -304,6 +304,7 @@
         var currentImageIndex = 0;
         var images_ready = [];
         var image_b64_ready = undefined
+        var sessionIdentifier = Math.random().toString(36).substring(7);
 
         var images_names = [];
 
@@ -366,12 +367,17 @@
         let base64Image = dataUrl.split(',')[1];
 
 
+
+
         // Create a JSON object with the base64 image, input labels, and input points
         var jsonData = {
             file: base64Image,
+            fileName: fileNames[currentImageIndex],
             again: sendingAgain,
             input_labels: inputLabels,
-            input_points: inputPoints
+            input_points: inputPoints,
+            sessionIdentifier: sessionIdentifier
+            
         };
 
         // Send a POST request to the Flask server
