@@ -188,6 +188,37 @@ def generate_image_with_prompt(image, input_labels, input_points):
     return image
 
 
+@app.route('/save', methods=['POST'])
+def save():
+    data = request.json
+    if 'sessionIdentifier' not in data:
+        return jsonify({'error': 'No sessionIdentifier in request'}), 400
+    sessionIdentifier = data['sessionIdentifier']
+    sessionFolder = os.path.join(SESSIONS_FOLDER, sessionIdentifier)
+
+    originalFolder = os.path.join(sessionFolder, 'original')
+    maskedFolder = os.path.join(sessionFolder, 'masked')
+
+    os.makedirs(originalFolder, exist_ok=True)
+    os.makedirs(maskedFolder, exist_ok=True)
+
+    original_image = data['originalImage']
+    masked_image = data['maskedImage']
+    file_name = data['fileName']
+
+    original_image = Image.open(io.BytesIO(base64.b64decode(original_image)))
+    original_cv2 = cv2.cvtColor(np.array(original_image), cv2.COLOR_RGB2BGR)
+
+    masked_image = Image.open(io.BytesIO(base64.b64decode(masked_image)))
+    masked_cv2 = cv2.cvtColor(np.array(masked_image), cv2.COLOR_RGB2BGR)
+
+    cv2.imwrite(os.path.join(originalFolder, file_name), original_cv2)
+    cv2.imwrite(os.path.join(maskedFolder, file_name), masked_cv2)
+
+
+    return jsonify({'message': 'Saved successfully'})
+
+
 
 @app.route('/predict/box', methods=['POST'])
 def predict_box():

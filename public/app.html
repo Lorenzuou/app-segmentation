@@ -151,16 +151,14 @@
 
     <script> 
         var fileNames = [];
-
+        var sessionIdentifier = Math.random().toString(36).substring(7);
+        var images = [];
+        var currentImageIndex = 0;
         
         // Create a new zip file
         var zip = new JSZip();
 
-        document.getElementById('pushButton').addEventListener('click', function() {
-            var canvas = document.getElementById('img_res'); 
-            var dataUrl = canvas.toDataURL();
-            images_ready.push(dataUrl);
-        });
+        
 
 
         function zipAndDownload(){
@@ -329,7 +327,7 @@
 
         function loadImage() {
             img.onload = function() {
-                var maxWidth = 300; // Max width for the image
+                var maxWidth = 500; // Max width for the image
                 var ratio = 0;  // Used for aspect ratio
 
                 // Check if the current width is larger than the max
@@ -354,6 +352,72 @@
             }
             img.src = images[currentImageIndex];
         }
+
+        document.getElementById('pushButton').addEventListener('click', function() {
+         
+            
+            var canvas = document.getElementById('img_res'); 
+            var dataUrl = canvas.toDataURL();
+            images_ready.push(dataUrl);
+
+                      var canvas = document.getElementById('img_res');
+            var maskedImage = canvas.toDataURL();
+            maskedImage = maskedImage.replace(/^data:image\/(png|jpg);base64,/, "");
+
+
+            // convert to base64
+            var originalImage = images[currentImageIndex]
+
+            //resizes the image to 500px of width
+            var img = new Image();
+            img.src = originalImage;
+            var maxWidth = 500; // Max width for the image
+            var ratio = 0;  // Used for aspect ratio
+
+            // Check if the current width is larger than the max
+            if(img.width > maxWidth){
+
+                //resize the image withot drawing it
+                var canvas = document.createElement('canvas');
+                var ctx = canvas.getContext('2d');
+                ratio = maxWidth / img.width;   // get ratio for scaling image
+                canvas.width = maxWidth;
+                canvas.height = img.height * ratio;
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                originalImage = canvas.toDataURL();
+            }
+            else{
+                var canvas = document.createElement('canvas');
+                var ctx = canvas.getContext('2d');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                
+                ctx.drawImage(img, 0, 0, img.width, img.height);
+                originalImage = canvas.toDataURL();
+                
+            }
+
+            originalImage = originalImage.replace(/^data:image\/(png|jpg);base64,/, "");
+
+
+
+
+            let jsonData = { 
+                "fileName": fileNames[currentImageIndex],
+                "sessionIdentifier": sessionIdentifier,
+                "originalImage": originalImage,
+                "maskedImage": maskedImage,
+            };
+
+            fetch('http://127.0.0.1:5000/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(jsonData)  // send the JSON data
+        })
+
+        });
 
 
         function handleMouseDown(e) {
