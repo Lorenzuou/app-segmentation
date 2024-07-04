@@ -13,7 +13,10 @@ import supervision as sv
 import os 
 from pathlib import Path
 
+import pickle as pkl
+
 SESSIONS_FOLDER = 'sessions'
+MAIN_IMAGE_FOLDER = 'images'
 
 
 def rmdir(directory):
@@ -40,10 +43,12 @@ CORS(app)  # enable CORS on the app
 
 
 CHECKPOINT_PATH = "./sam_vit_h_4b8939.pth"
+# CHECKPOINT_PATH = "./sam_vit_b_01ec64.pth"
 
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 print(f"Device: {DEVICE}")
 MODEL_TYPE = "vit_h"
+# MODEL_TYPE = "vit_b"
 
 model = sam_model_registry[MODEL_TYPE](checkpoint=CHECKPOINT_PATH)
 model.to(device=DEVICE)
@@ -335,6 +340,48 @@ def predict():
     image_bytes = image.getvalue()
     base64_encoded_result = base64.b64encode(image_bytes).decode()  # encode as base64
     return jsonify({'image': base64_encoded_result})
+
+@app.route('/process/folder', methods=['GET'])
+def process_folder():
+    # # Access 'folder' from the query parameters
+    folder = request.args.get('folderName', None)
+
+    if folder is None:
+        return jsonify({'error': 'No folder in request'}), 400
+
+    folder_path = os.path.join(MAIN_IMAGE_FOLDER, folder)
+    
+    if folder_path is None:
+        return jsonify({'error': 'No folder in request'}), 400
+
+    # Check if folder exists
+    if not os.path.exists(folder_path):
+        return jsonify({'error': 'Folder does not exist'}), 400
+    
+    try: 
+        list_of_files = os.listdir(folder_path)
+        # Check if folder is empty
+        if len(list_of_files) == 0:
+            return jsonify({'error': 'Folder is empty'}), 400
+        
+        for file in list_of_files:
+            image = cv2.imread(os.path.join(folder_path, file))
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            # Assuming predictor is defined elsewhere and set up correctly
+            set_image(image)
+            embedd = predictor.get_image_embedding()
+            file = file.split('.')[0]
+            # Serialize the embeddings
+            with open(f'{folder_path}/{file}.pkl', 'wb') as f:
+                pkl.dump(embedd, f)
+    except Exception as e:
+        return jsonify({'error': f'Error processing folder: {str(e)}'}), 400
+
+    return jsonify({'message': 'Embeddings generated and serialized successfully'}), 200
+
+
+
+
 @app.route('/')
 def hello():
     return 'Hello, World!'

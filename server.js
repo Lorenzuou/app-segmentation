@@ -9,6 +9,10 @@ app.get('/', function(req, res) {
     res.sendFile(path.join(__dirname, 'public', 'app.html'));
 });
 
+app.get('/menu', function(req, res) {
+    res.sendFile(path.join(__dirname, 'public', 'app_select_function.html'));
+});
+
 app.get('/sam', function(req, res) {
     res.sendFile(path.join(__dirname, 'public', 'app_with_SAM.html'));
 });

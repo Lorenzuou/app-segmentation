@@ -2,3 +2,7 @@
 node_modules
 *.onnx
 sam-server/sessions
+*.png
+*.jpg
+*.jpeg
+*.pkl
