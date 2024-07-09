@@ -2,6 +2,7 @@
 <html>
 <head>
 <style>
+    /* CSS styles */
 
     body {
         display: flex;
@@ -68,21 +69,28 @@
     .button-save:hover {
         background-color: #007a9b;
     }
-
     .custom-file-upload {
         padding: 5px; /* Reduce the padding to make the buttons smaller */
         border: 1px solid #ccc;
         display: inline-block;
         cursor: pointer;
-        background-color: #834b3dbe; /* Green background */
+        background-color: #45a049; /* Green background */
         color: white; /* White text */
         font-weight: bold;
         text-align: center;
         transition: background-color 0.3s ease;
+        border-radius: 4px;
+        font-size: 16px;
+        padding: 10px 20px;
     }
 
     .custom-file-upload:hover {
-        background-color: #45a049; /* Darker green on hover */
+        background-color: #007a9b; /* Darker green on hover */
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
     }
 
 </style>
@@ -92,60 +100,66 @@
     <div display="flex" justify-content="center" align-items="center">
         <h1>Image Segmentation Tool</h1>
         <h2>Select what you want to do:</h2>
-        <form class="row">
+        <div class="row">
             <div class="col">
-            <button class="button">Manual Segmentation</button>
+            <a href="/manual">
+                <button class="button">Manual Segmentation</button>
+            </a>
             </div>
-        </form>
-
-        <form class="row">
+        </div>
+        <div class="row">
             <!-- SAM Segmentation -->
             <div class="col">
-            <input id="samFolder" type="text" placeholder="Folder name for SAM" />
-            <button class="button">SAM Segmentation</button>
+                <a href="/sam-click">
+                    <button class="button">Dots with SAM Segmentation</button>
+                </a>
+                <input id="samFolder" type="text" placeholder="Folder name for SAM" />
             </div>
-        </form>
-
-
+        </div>
 
         <div class="row">
             <!-- SAM Segmentation with dots -->
             <div class="col">
-            <input id="samFolderDot" type="text" placeholder="Folder name for SAM" />
-            <button class="button">SAM Segmentation</button>
+                <a href="/sam-box">
+                    <button class="button">BOX with SAM Segmentation</button>
+                </a>
+                <input id="samFolderDot" type="text" placeholder="Folder name for SAM" />
             </div>
         </div>
 
-        <div class="row">
+
+        <div class="row"></div>
             <!-- Folder Pre-Processing -->
             <div class="col">
-            <input id="preProcessFolder" type="text" placeholder="Folder name for Pre-Processing" />
             <button id="preProcessFolderButton" class="button">Folder Pre-Processing</button>
+            <input id="preProcessFolder" type="text" placeholder="Folder name for Pre-Processing" />
+            <div id="loader" class="loader" style="display: none;"></div> <!-- Add the loader element -->
             </div>
-        </div>
         </div>
     </div>
     <script>
-
         //add event listener to the button preProcessFolder
         document.querySelector('#preProcessFolderButton').addEventListener('click', function() {
             var folderName = document.getElementById('preProcessFolder').value;
             console.log("folderName: " + folderName);
             // do a fetch to http://127.0.0.1:5000/process/folder?folderName=folderName
-            
+
+            // Show the loader
+            document.getElementById('loader').style.display = 'block';
+
             fetch('http://127.0.0.1:5000/process/folder?folderName=' + folderName)
             .then(response => response.json())
             .then(data => {
-                console.log(data);
+                // Hide the loader after the fetch is complete
+                document.getElementById('loader').style.display = 'none';
             }).catch((error) => {
                 console.error('Error:', error);
+                // Hide the loader if there is an error
+                document.getElementById('loader').style.display = 'none';
+
+                alert('Error: ' + error);
             });
-
-
         });
-
-
-
-     
     </script>
 </body>
+</html>

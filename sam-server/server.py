@@ -43,12 +43,12 @@ CORS(app)  # enable CORS on the app
 
 
 CHECKPOINT_PATH = "./sam_vit_h_4b8939.pth"
-# CHECKPOINT_PATH = "./sam_vit_b_01ec64.pth"
+CHECKPOINT_PATH = "./sam_vit_b_01ec64.pth"
 
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 print(f"Device: {DEVICE}")
 MODEL_TYPE = "vit_h"
-# MODEL_TYPE = "vit_b"
+MODEL_TYPE = "vit_b"
 
 model = sam_model_registry[MODEL_TYPE](checkpoint=CHECKPOINT_PATH)
 model.to(device=DEVICE)
@@ -62,6 +62,13 @@ predictor = SamPredictor(model)
 
 current_image = None
 current_mask = None
+
+
+def get_embedding(image_name, image_folder):
+    # load pkl file
+    with open(f'{image_folder}/{image_name}.pkl', 'rb') as f:
+        embedding = pkl.load(f)
+    return embedding
 
 
 def get_largest_area(result_dict):
@@ -153,6 +160,7 @@ def generate_images_with_box(image, box):
 
     return image
 
+
 def generate_image_with_prompt(image, input_labels, input_points):
     # input_labels = input_labels.split(',') if input_labels else []
     # input_points = input_points.split(',') if input_points else []
@@ -207,33 +215,80 @@ def save():
     os.makedirs(originalFolder, exist_ok=True)
     os.makedirs(maskedFolder, exist_ok=True)
 
-    original_image = data['originalImage']
-    masked_image = data['maskedImage']
-    file_name = data['fileName']
+    # try:
+    #     original_image = Image.open(io.BytesIO(base64.b64decode(data['originalImage'])))
+    #     original_cv2 = cv2.cvtColor(np.array(original_image), cv2.COLOR_RGB2BGR)
+    #     cv2.imwrite(os.path.join(originalFolder, data['fileName']), original_cv2)
+    # except Exception as e:
+    #     return jsonify({'error': f'Failed to process original image: {str(e)}'}), 500
 
-    original_image = Image.open(io.BytesIO(base64.b64decode(original_image)))
-    original_cv2 = cv2.cvtColor(np.array(original_image), cv2.COLOR_RGB2BGR)
+    try:
+        masked_image = Image.open(io.BytesIO(base64.b64decode(data['maskedImage'])))
+        masked_cv2 = cv2.cvtColor(np.array(masked_image), cv2.COLOR_RGB2BGR)
+        cv2.imwrite(os.path.join(maskedFolder, data['fileName']), masked_cv2)
+    except Exception as e:
+        return jsonify({'error': f'Failed to process masked image: {str(e)}'}), 500
 
-    masked_image = Image.open(io.BytesIO(base64.b64decode(masked_image)))
-    masked_cv2 = cv2.cvtColor(np.array(masked_image), cv2.COLOR_RGB2BGR)
+    return jsonify({'message': 'Saved successfully'}), 200
 
-    cv2.imwrite(os.path.join(originalFolder, file_name), original_cv2)
-    cv2.imwrite(os.path.join(maskedFolder, file_name), masked_cv2)
+# list all image names on the camera_id folder
+@app.route("/image/list", methods=['GET'])
+def list_images():
+    folder_name = request.args.get('folderName')
+    if folder_name is None:
+        return jsonify({'error': 'No folderName in request'}), 400
+
+    folder_path = os.path.join(MAIN_IMAGE_FOLDER, folder_name)
+    if not os.path.exists(folder_path):
+        return jsonify({'error': 'Folder does not exist'}), 400
+    list_of_files = os.listdir(folder_path)
+    list_of_files = [file for file in list_of_files if file.endswith('.jpg')]
+    list_of_files = [file.split('.')[0] for file in list_of_files]
+
+    return jsonify({'images': list_of_files}), 200
 
 
-    return jsonify({'message': 'Saved successfully'})
+@app.route("/image", methods=['GET'])
+def get_image():
+    folderName = request.args.get('folderName')
+    image_name = request.args.get('imageName')
+    if folderName is None:
+        return jsonify({'error': 'No folderName in request'}), 400
+    
+    if image_name is None: 
+        return jsonify({'error': 'No imageName in request'}), 400
 
+    folder_path = os.path.join(MAIN_IMAGE_FOLDER, folderName)
+    if not os.path.exists(folder_path):
+        return jsonify({'error': 'Folder does not exist'}), 400
+
+    image_path = os.path.join(folder_path, image_name)
+    #add .jpg extension
+    image_path = image_path + '.jpg'
+    if not os.path.exists(image_path):
+        return jsonify({'error': 'Image does not exist'}), 400
+    image = cv2.imread(image_path)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+    image = Image.fromarray(image)
+    img_io = io.BytesIO()
+    image.save(img_io, 'PNG')
+    img_io.seek(0)
+    img_bytes = img_io.getvalue()
+    base64_encoded_result = base64.b64encode(img_bytes).decode()
+    return jsonify({'image': base64_encoded_result}), 200
 
 
 @app.route('/predict/box', methods=['POST'])
 def predict_box():
     data = request.json
-    if 'file' not in data:
+    if 'fileName' not in data:
         return jsonify({'error': 'No file in request'}), 400
     if 'box' not in data:
         return jsonify({'error': 'No box in request'}), 400
     
     sessionIdentifier = data['sessionIdentifier']
+    folderName = data['folderName']
 
     # check if a folder with the sessionIdentifier exists 
     sessionFolder = os.path.join(SESSIONS_FOLDER, sessionIdentifier)
@@ -248,16 +303,26 @@ def predict_box():
     image = Image.open(io.BytesIO(base64.b64decode(data['file'])))
     image_cv2 = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
-    image_name = data['fileName']
+    image_name = data['fileName'] 
 
-    cv2.imwrite(os.path.join(originalFolder, image_name), image_cv2)
+    cv2.imwrite(os.path.join(originalFolder, image_name + '.jpg'), image_cv2)
 
     box = data['box']
-    if (data['again'] is False or predictor.is_image_set is False):
-        set_image(image_cv2)
+    embeddingFolder = os.path.join(MAIN_IMAGE_FOLDER, folderName)
+
+    if not os.path.exists(embeddingFolder):
+        return jsonify({'error': 'Folder does not exist'}), 400
+    
+    predictor.reset_image()
+    image_obj = get_embedding(image_name, embeddingFolder)
+    predictor.features = image_obj['embedd']
+    predictor.original_size = image_obj['original_size']
+    predictor.input_size = image_obj['input_size']
+    predictor.is_image_set = True
+
     image_masked = generate_images_with_box(image_cv2, box)
 
-    cv2.imwrite(os.path.join(maskedFolder, image_name), image_masked)
+    cv2.imwrite(os.path.join(maskedFolder, image_name + '.jpg'), image_masked)
 
     # turn black to white and white to black 
     # image_masked = cv2.bitwise_not(image_masked)
@@ -284,35 +349,53 @@ def predict_prompt():
     if 'input_points' not in data:
         return jsonify({'error': 'No input_points in request'}), 400
 
+    sessionIdentifier = data['sessionIdentifier']
+    folderName = data['folderName']
+
+    # check if a folder with the sessionIdentifier exists 
+    sessionFolder = os.path.join(SESSIONS_FOLDER, sessionIdentifier)
+    os.makedirs(sessionFolder, exist_ok=True)
+
+    #create a original and masked folder
+    originalFolder = os.path.join(sessionFolder, 'original')
+    maskedFolder = os.path.join(sessionFolder, 'masked')
+    os.makedirs(originalFolder, exist_ok=True)
+    os.makedirs(maskedFolder, exist_ok=True)
+
     image = Image.open(io.BytesIO(base64.b64decode(data['file'])))
     image_cv2 = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-    #save image to disk
-    cv2.imwrite('image.jpg', image_cv2)
+
+    image_name = data['fileName'] 
+
+    cv2.imwrite(os.path.join(originalFolder, image_name + '.jpg'), image_cv2)
+
     input_labels = data['input_labels']
     input_points = data['input_points']
 
+    embeddingFolder = os.path.join(MAIN_IMAGE_FOLDER, folderName)
+
+    if not os.path.exists(embeddingFolder):
+        return jsonify({'error': 'Folder does not exist'}), 400
     
-    if (data['again'] is False or predictor.is_image_set is False):
-        set_image(image_cv2)
+    predictor.reset_image()
+    image_obj = get_embedding(image_name, embeddingFolder)
+    predictor.features = image_obj['embedd']
+    predictor.original_size = image_obj['original_size']
+    predictor.input_size = image_obj['input_size']
+    predictor.is_image_set = True
 
     image_masked = generate_image_with_prompt(image_cv2, input_labels, input_points)
 
-
-    # turn black to white and white to black 
-    # image_masked = cv2.bitwise_not(image_masked)
-    #save masked image to disk
-    cv2.imwrite('image_masked.jpg', image_masked)
+    cv2.imwrite(os.path.join(maskedFolder, image_name + '.jpg'), image_masked)
 
     image_masked = Image.fromarray(image_masked)
 
-    #send image as response to the client in json format
     image = io.BytesIO()
     image_masked.save(image, format='PNG')
     image.seek(0)
     image_bytes = image.getvalue()
     base64_encoded_result = base64.b64encode(image_bytes).decode()
     return jsonify({'image': base64_encoded_result})
-
 
 
 
@@ -346,7 +429,7 @@ def process_folder():
     # # Access 'folder' from the query parameters
     folder = request.args.get('folderName', None)
 
-    if folder is None:
+    if folder is None or folder == '':
         return jsonify({'error': 'No folder in request'}), 400
 
     folder_path = os.path.join(MAIN_IMAGE_FOLDER, folder)
@@ -366,18 +449,30 @@ def process_folder():
         
         for file in list_of_files:
             image = cv2.imread(os.path.join(folder_path, file))
+            # if image size is greater than 1920 x 1080, resize to 1920 x 1080 and save (the model can't handle much big images)
+            if image.shape[0] > 1080 or image.shape[1] > 1920:
+                image = cv2.resize(image, (1920, 1080))
+                # add "resized" to the file name
+                file = file.split('.')[0] + '_resized.jpg'
+                cv2.imwrite(os.path.join(folder_path, file), image)
+
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             # Assuming predictor is defined elsewhere and set up correctly
             set_image(image)
             embedd = predictor.get_image_embedding()
+            original_size = predictor.original_size
+            input_size = predictor.input_size
             file = file.split('.')[0]
-            # Serialize the embeddings
+            predictor_obj = {'embedd': embedd, 'original_size': original_size, 'input_size': input_size}
             with open(f'{folder_path}/{file}.pkl', 'wb') as f:
-                pkl.dump(embedd, f)
+                pkl.dump(predictor_obj, f)
     except Exception as e:
         return jsonify({'error': f'Error processing folder: {str(e)}'}), 400
 
     return jsonify({'message': 'Embeddings generated and serialized successfully'}), 200
+
+
+
 
 
 
@@ -389,4 +484,4 @@ def hello():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)

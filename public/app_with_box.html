@@ -151,10 +151,12 @@
         <h2>Select one or more images to segment, use the points to indicate what should be segmented</h2>
         <div style="display: flex;">
             <div>
-                <input type="file" id="imageLoader" name="imageLoader" multiple style="display: none;"/>
+                <input type="button" id="imageLoader" name="imageLoader" multiple style="display: none;"/>
                 <label for="imageLoader" class="custom-file-upload">
-                    Select images
+                    Select image folder
                 </label>
+                <input type="text" id="folderName" name="folderName"/> 
+
                     <!-- CANVAS -->
                     <div class="row">
                     <div class="col">                            
@@ -230,6 +232,7 @@
                 
                 // Create a new zip file
                 var zip = new JSZip();
+                
 
                 if (images_ready.length === 0) {
                     alert('Nenhuma imagem foi segmentada ainda');
@@ -244,10 +247,7 @@
 
                     let image_name = fileNames[index];
 
-                    //remove extension if not png and add png
-                    if (!image_name.endsWith('.png')) {
-                        image_name = image_name.split('.').slice(0, -1).join('.') + '.png';
-                    }
+                    image_name = image_name + '.png';
 
 
                     // Add the image Blob to the zip file
@@ -257,7 +257,7 @@
                 // Generate the zip file and trigger the download
                 zip.generateAsync({type:"blob"})
                 .then(function(content) {
-                    saveAs(content, "images.zip");
+                    saveAs(content, sessionIdentifier + '.zip');
                 });
             }
 
@@ -306,8 +306,12 @@
         var images_ready = [];
         var image_b64_ready = undefined
         var sessionIdentifier = Math.random().toString(36).substring(7);
+        //add box-sam- to the session identifier
+        sessionIdentifier = 'sam-box-' + sessionIdentifier;
+        
 
 
+        var folderName = '';
 
         var box = [];
 
@@ -336,7 +340,6 @@
                 drawBox();
             }
         });
-
        
 
         // Add an event listener to the canvas for mouseup
@@ -364,23 +367,22 @@
                 end = null;
 
               
-                if (sendingAgain==true){ 
-                    document.getElementById('loading').style.display = 'block';
-                    let dataUrl = images[currentImageIndex];
-                    // Remove the "data:image/png;base64," part of the data URL
-                    let base64Image = dataUrl.split(',')[1];
+            
+                document.getElementById('loading').style.display = 'block';
+                let dataUrl = images[currentImageIndex];
+                let base64Image = dataUrl.split(',')[1];
 
 
-                    let jsonData = {
-                        file: base64Image,
-                        fileName: fileNames[currentImageIndex],
-                        box: box,
-                        again: sendingAgain,
-                        sessionIdentifier: sessionIdentifier
+                let jsonData = {
+                    file: base64Image,
+                    fileName: fileNames[currentImageIndex],
+                    folderName: folderName,
+                    box: box,
+                    again: sendingAgain,
+                    sessionIdentifier: sessionIdentifier
 
-                    };
-                    do_the_fetch_box(jsonData);
-                }
+                };
+                do_the_fetch_box(jsonData);
             }
         });
 
@@ -459,6 +461,7 @@
         var jsonData = {
             file: base64Image,
             fileName: fileNames[currentImageIndex],
+            folderName: folderName,
             box: box,
             again: sendingAgain,
             sessionIdentifier: sessionIdentifier
@@ -472,25 +475,53 @@
               
 
         
+        async function handleImage(e) {
+            sendingAgain = false;
 
-        function handleImage(e) {
-            sendingAgain = false
-            
-            fileNames = Array.from(this.files).map(function(file) {
-                return file.name;
-            });
-            var files = e.target.files;
-            for (var i = 0; i < files.length; i++) {
-                var reader = new FileReader();
-                reader.onload = (function(file) {
-                    return function(event) {
-                        images.push(event.target.result);
-                        if (file === files[0]) {
-                            loadImage();
-                        }
+            folderName = document.getElementById('folderName').value;
+
+            if (folderName === '') {
+                alert('Please enter a folder name');
+                return;
+            }
+
+            try {
+                // Fetch the image names from the server 
+                const response = await fetch('http://127.0.0.1:5000/image/list?folderName=' + folderName, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
                     }
-                })(files[i]);
-                reader.readAsDataURL(files[i]);
+                });
+                const data = await response.json();
+
+                // The image names are returned in the 'images' property
+                fileNames = data.images;
+                console.log(fileNames);
+
+                //if 400, alert that the name of the folder is incorrect or do not exist
+                if (response.status === 400) {
+                    alert('The folder name is incorrect or does not exist');
+                    return;
+                }
+
+                // Fetch each image from the server and push them to the images array
+                for (let i = 0; i < fileNames.length; i++) {
+                    const imageResponse = await fetch('http://127.0.0.1:5000/image' + '?imageName=' + fileNames[i] + '&folderName=' + folderName, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    const imageData = await imageResponse.json();
+                    // The image is returned as a base64 string in the 'image' property
+                    images.push('data:image/png;base64,' + imageData.image);
+                    if (i == 0) {
+                        loadImage();
+                    }
+                }
+            } catch (error) {
+                console.error(error);
             }
         }
 
@@ -522,7 +553,7 @@
                 img.src = images[currentImageIndex];
             }
 
-        document.getElementById('imageLoader').addEventListener('change', handleImage, false);
+        document.getElementById('imageLoader').addEventListener('click', handleImage, false);
 
 
         document.getElementById('pushButton').addEventListener('click', function() {
@@ -547,14 +578,15 @@
             if (currentImageIndex < images.length) {
                 loadImage();
             }else{
-                //erase the 
+                
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctxSeg.clearRect(0, 0, canvasSeg.width, canvasSeg.height);
                 //alert segmentation is over 
                 alert('Segmentation is over');
                 zipAndDownload();
-
-                //reset page 
-                location.reload();
+                images_ready = [];
+                currentImageIndex = 0;
+                fileNames = [];
 
             }
         });
@@ -593,21 +625,21 @@
         document.getElementById('blueButton').click();
 
         // Add an event listener to the reset button
-        document.getElementById('resetButton').addEventListener('click', function() {
-            // Clear the inputLabels and inputPoints arrays
+        // document.getElementById('resetButton').addEventListener('click', function() {
+        //     // Clear the inputLabels and inputPoints arrays
 
-            // Clear the canvas
-            let canvas = document.getElementById('img_seg');
-            let ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        //     // Clear the canvas
+        //     let canvas = document.getElementById('img_seg');
+        //     let ctx = canvas.getContext('2d');
+        //     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Reset the selected button
-            if (selectedButton) {
-                selectedButton.style.border = 'none';
-                selectedButton = null;
-            }
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        });
+        //     // Reset the selected button
+        //     if (selectedButton) {
+        //         selectedButton.style.border = 'none';
+        //         selectedButton = null;
+        //     }
+        //     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        // });
         </script>
 
     </div>
