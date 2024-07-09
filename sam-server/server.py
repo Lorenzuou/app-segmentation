@@ -206,6 +206,10 @@ def save():
     data = request.json
     if 'sessionIdentifier' not in data:
         return jsonify({'error': 'No sessionIdentifier in request'}), 400
+    if 'maskedImage' not in data:
+        return jsonify({'error': 'No maskedImage in request'}), 400
+    if 'fileName' not in data:
+        return jsonify({'error': 'No fileName in request'}), 400
     sessionIdentifier = data['sessionIdentifier']
     sessionFolder = os.path.join(SESSIONS_FOLDER, sessionIdentifier)
 
@@ -215,20 +219,16 @@ def save():
     os.makedirs(originalFolder, exist_ok=True)
     os.makedirs(maskedFolder, exist_ok=True)
 
-    # try:
-    #     original_image = Image.open(io.BytesIO(base64.b64decode(data['originalImage'])))
-    #     original_cv2 = cv2.cvtColor(np.array(original_image), cv2.COLOR_RGB2BGR)
-    #     cv2.imwrite(os.path.join(originalFolder, data['fileName']), original_cv2)
-    # except Exception as e:
-    #     return jsonify({'error': f'Failed to process original image: {str(e)}'}), 500
+    image = Image.open(io.BytesIO(base64.b64decode(data['maskedImage']))
+                        ).convert('RGB')
+    image_cv2 = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+    image_name = data['fileName']
+    cv2.imwrite(os.path.join(maskedFolder, image_name + '.jpg'), image_cv2)
 
-    try:
-        masked_image = Image.open(io.BytesIO(base64.b64decode(data['maskedImage'])))
-        masked_cv2 = cv2.cvtColor(np.array(masked_image), cv2.COLOR_RGB2BGR)
-        cv2.imwrite(os.path.join(maskedFolder, data['fileName']), masked_cv2)
-    except Exception as e:
-        return jsonify({'error': f'Failed to process masked image: {str(e)}'}), 500
-
+    original_image = Image.open(io.BytesIO(base64.b64decode(data['originalImage']))).convert('RGB')
+    original_image_cv2 = cv2.cvtColor(np.array(original_image), cv2.COLOR_RGB2BGR)
+    cv2.imwrite(os.path.join(originalFolder, image_name + '.jpg'), original_image_cv2)
+    
     return jsonify({'message': 'Saved successfully'}), 200
 
 # list all image names on the camera_id folder

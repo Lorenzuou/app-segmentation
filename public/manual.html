@@ -409,12 +409,11 @@
          
             
             var canvas = document.getElementById('img_res'); 
-            var dataUrl = canvas.toDataURL();
+            var dataUrl = canvas.toDataURL('image/png')
             images_ready.push(dataUrl);
 
-            var canvas = document.getElementById('img_res');
-            var maskedImage = canvas.toDataURL();
-            maskedImage = maskedImage.split(',')[1];
+            var maskedImage = dataUrl.split(',')[1];
+            
 
             // convert to base64
             var originalImage = images[currentImageIndex]
